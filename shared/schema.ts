@@ -94,6 +94,12 @@ export const activityLogs = pgTable("activity_logs", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
+export const requestTechnicians = pgTable("request_technicians", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").references(() => maintenanceRequests.id).notNull(),
+  technicianId: integer("technician_id").references(() => users.id).notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   department: one(departments, { fields: [users.departmentId], references: [departments.id] }),
@@ -101,6 +107,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   assignedEquipment: many(equipment, { relationName: "assignedEmployee" }),
   defaultForEquipment: many(equipment, { relationName: "defaultTechnician" }),
   assignedRequests: many(maintenanceRequests, { relationName: "assignedTechnician" }),
+  technicalAssignments: many(requestTechnicians),
   createdRequests: many(maintenanceRequests, { relationName: "requestCreator" }),
 }));
 
@@ -113,10 +120,11 @@ export const equipmentRelations = relations(equipment, ({ one, many }) => ({
   requests: many(maintenanceRequests),
 }));
 
-export const maintenanceRequestsRelations = relations(maintenanceRequests, ({ one }) => ({
+export const maintenanceRequestsRelations = relations(maintenanceRequests, ({ one, many }) => ({
   equipment: one(equipment, { fields: [maintenanceRequests.equipmentId], references: [equipment.id] }),
   maintenanceTeam: one(teams, { fields: [maintenanceRequests.maintenanceTeamId], references: [teams.id] }),
   assignedTechnician: one(users, { fields: [maintenanceRequests.assignedTechnicianId], references: [users.id], relationName: "assignedTechnician" }),
+  technicians: many(requestTechnicians),
   creator: one(users, { fields: [maintenanceRequests.createdBy], references: [users.id], relationName: "requestCreator" }),
 }));
 
@@ -131,12 +139,18 @@ export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
 }));
 
+export const requestTechniciansRelations = relations(requestTechnicians, ({ one }) => ({
+  request: one(maintenanceRequests, { fields: [requestTechnicians.requestId], references: [maintenanceRequests.id] }),
+  technician: one(users, { fields: [requestTechnicians.technicianId], references: [users.id] }),
+}));
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true });
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
+export const insertRequestTechnicianSchema = createInsertSchema(requestTechnicians).omit({ id: true });
 
 // Helper for coercing timestamp strings to Date objects
 const zTimestamp = z.preprocess((arg) => {
@@ -168,4 +182,5 @@ export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
 export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;
 export type InsertRequest = z.infer<typeof insertRequestSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+export type RequestTechnician = typeof requestTechnicians.$inferSelect;
 

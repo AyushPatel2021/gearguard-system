@@ -158,6 +158,17 @@ export function useTeams() {
   });
 }
 
+export function useTeamMembers() {
+  return useQuery({
+    queryKey: ["/api/team-members"],
+    queryFn: async () => {
+      const res = await fetch("/api/team-members");
+      if (!res.ok) throw new Error("Failed to fetch team members");
+      return await res.json();
+    },
+  });
+}
+
 export function useUsers() {
   return useQuery({
     queryKey: ["/api/users"],

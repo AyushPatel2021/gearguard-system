@@ -1,0 +1,4 @@
+1:21:24 PM [express] serving on port 5000
+updateTeam called with: 6 { memberIds: [ 2, 3 ] }
+1:21:29 PM [express] PATCH /api/teams/6 200 in 23ms :: {"id":6,"name":"API Test Team","specialization":"Testing","description":"Created via API"}
+1:21:38 PM [express] GET /api/teams/6 200 in 6ms :: {"id":6,"name":"API Test Team","specialization":"Testing","description":"Created via API","memberIds":[2,3]}

@@ -1,4 +1,4 @@
-import { useRequests, useUpdateRequest, useEquipmentDetail } from "@/hooks/use-gear";
+import { useRequests, useUpdateRequest, useEquipmentDetail, useUsers } from "@/hooks/use-gear";
 import { LayoutShell } from "@/components/layout-shell";
 import { RequestDialog } from "@/components/request-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ import { useLocation, useSearch } from "wouter";
 
 export default function RequestsPage() {
   const { data: requests, isLoading } = useRequests();
+  const { data: users } = useUsers();
   const [location, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
@@ -62,6 +63,11 @@ export default function RequestsPage() {
     in_progress: "secondary",
     repaired: "outline",
     scrap: "destructive",
+  };
+
+  const getTechnicianNames = (ids?: number[]) => {
+    if (!ids || ids.length === 0) return null;
+    return ids.map(id => users?.find(u => u.id === id)?.name).filter(Boolean);
   };
 
   return (
@@ -110,6 +116,7 @@ export default function RequestsPage() {
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead>Subject</TableHead>
+                      <TableHead>Technicians</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Date Created</TableHead>
@@ -120,14 +127,23 @@ export default function RequestsPage() {
                   <TableBody>
                     {filteredRequests?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                           No maintenance requests found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredRequests?.map((request) => (
+                      filteredRequests?.map((request: any) => (
                         <TableRow key={request.id} className="hover:bg-slate-50/50">
                           <TableCell className="font-medium">{request.subject}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {getTechnicianNames(request.technicianIds)?.map((name, i) => (
+                                <Badge key={i} variant="outline" className="text-xs font-normal">
+                                  {name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge variant={statusColor[request.status] as any} className="capitalize">
                               {request.status.replace('_', ' ')}
@@ -142,10 +158,6 @@ export default function RequestsPage() {
                             {format(new Date(request.createdAt), "MMM d, yyyy")}
                           </TableCell>
                           {!equipmentId && <TableCell>{request.equipmentId}</TableCell>}
-                          {/* Ideally we would map Equipment ID to Name, but that requires filtering equipment list or joining on backend. 
-                                            For now ID is acceptable or we display nothing if list is standalone. 
-                                            User requested "List view of maintenance request", assuming generic list.
-                                        */}
                           <TableCell className="text-right">
                             <RequestActions request={request} />
                           </TableCell>

@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertRequestSchema, InsertRequest } from "@shared/schema";
-import { useCreateRequest, useEquipment, useRequests } from "@/hooks/use-gear";
+import { useCreateRequest, useEquipment, useRequests, useUsers } from "@/hooks/use-gear";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -38,6 +39,7 @@ const formSchema = insertRequestSchema.extend({
   equipmentId: z.coerce.number(),
   priority: z.enum(["low", "medium", "high"]),
   requestType: z.enum(["corrective", "preventive"]),
+  technicianIds: z.array(z.string()).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,6 +54,10 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
   const { user } = useAuth();
   const createRequest = useCreateRequest();
   const { data: equipmentList } = useEquipment();
+  const { data: users } = useUsers();
+
+  const technicians = users?.filter((u: any) => u.role === 'technician') || [];
+  const technicianOptions = technicians.map((t: any) => ({ label: t.name, value: t.id.toString() }));
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -63,18 +69,26 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
       status: "new",
       equipmentId: preselectedEquipmentId,
       createdBy: user?.id,
+      technicianIds: [],
     },
   });
 
   const onSubmit = (data: FormValues) => {
     // Determine the maintenance team from the selected equipment
     const selectedEq = equipmentList?.find(e => e.id === data.equipmentId);
-    
-    const payload: InsertRequest = {
+
+    // Convert string array to number array for backend (handled in routes usually, but payload type expects it or extra prop)
+    // The insertRequestSchema doesn't have technicianIds, so we cast payload to any or extend interface
+
+    const payload: any = {
       ...data,
       maintenanceTeamId: selectedEq?.maintenanceTeamId || null,
       createdBy: user?.id!,
       status: "new",
+      // technicianIds is passed through data, but we need to ensure it's number[] or handled by backend parser which expects number[] or string[] mapping
+      // Our backend route handles mapping string[] to number[] if needed, let's verify route. 
+      // Route says: `const cleanTechnicianIds = Array.isArray(technicianIds) ? technicianIds.map(Number) : undefined;`
+      // So passing string array is fine, route handles coercion.
     };
 
     createRequest.mutate(payload, {
@@ -125,8 +139,8 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Equipment</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       defaultValue={field.value?.toString()}
                       disabled={!!preselectedEquipmentId}
                     >
@@ -174,6 +188,25 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
 
             <FormField
               control={form.control}
+              name="technicianIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign Technicians</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      options={technicianOptions}
+                      selected={field.value || []}
+                      onChange={field.onChange}
+                      placeholder="Select technicians..."
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="requestType"
               render={({ field }) => (
                 <FormItem>
@@ -201,10 +234,10 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Describe the issue in detail..." 
+                    <Textarea
+                      placeholder="Describe the issue in detail..."
                       className="resize-none h-32"
-                      {...field} 
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

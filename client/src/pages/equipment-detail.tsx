@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useEquipmentDetail, useCategories, useTeams, useUsers, useCreateEquipment, useRequests } from "@/hooks/use-gear";
+import { useEquipmentDetail, useCategories, useTeams, useUsers, useCreateEquipment, useRequests, useTeamMembers } from "@/hooks/use-gear";
 import { useRoute, useLocation } from "wouter";
 import { LayoutShell } from "@/components/layout-shell";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export default function EquipmentDetailPage() {
     const { data: teams } = useTeams();
     const { data: users } = useUsers();
     const { data: requests } = useRequests();
+    const { data: teamMembers } = useTeamMembers();
 
     const [isEditing, setIsEditing] = useState(isNew);
     const [formData, setFormData] = useState<any>({ status: 'active' });
@@ -39,6 +40,18 @@ export default function EquipmentDetailPage() {
 
     // Stats
     const requestCount = requests?.filter(r => r.equipmentId === id).length || 0;
+
+    // Derived Data for Filters
+    const technicians = users?.filter((u: any) => u.role === 'technician') || [];
+
+    // Filter technicians based on selected Maintenance Team
+    const filteredTechnicians = formData.maintenanceTeamId
+        ? technicians.filter((tech: any) =>
+            // If teamMembers not loaded yet, show none or all? Better to be safe.
+            // Assuming teamMembers is array of { teamId, userId }
+            teamMembers?.some((tm: any) => tm.teamId === formData.maintenanceTeamId && tm.userId === tech.id)
+        )
+        : technicians;
 
     useEffect(() => {
         if (!isNew && equipment) {
@@ -58,6 +71,37 @@ export default function EquipmentDetailPage() {
             setFormData((prev: any) => ({ ...prev, status: 'active' }));
         }
     }, [formData.scrapDate]);
+
+    // Handlers
+    const handleTechnicianChange = (techIdStr: string) => {
+        const techId = parseInt(techIdStr);
+        const updates: any = { defaultTechnicianId: techId };
+
+        // Auto-select team logic: If user is in exactly one team, select it
+        if (techId && teamMembers) {
+            const userTeams = teamMembers.filter((tm: any) => tm.userId === techId);
+            if (userTeams.length === 1) {
+                updates.maintenanceTeamId = userTeams[0].teamId;
+            }
+        }
+        setFormData((prev: any) => ({ ...prev, ...updates }));
+    };
+
+    const handleTeamChange = (teamIdStr: string) => {
+        const teamId = parseInt(teamIdStr);
+        setFormData((prev: any) => {
+            // Check if current technician is in the new team
+            const currentTech = technicians.find((t: any) => t.id === prev.defaultTechnicianId);
+            const isTechInNewTeam = currentTech && teamMembers?.some((tm: any) => tm.teamId === teamId && tm.userId === currentTech.id);
+
+            return {
+                ...prev,
+                maintenanceTeamId: teamId,
+                // If the currently selected technician is NOT in the new team, clear the selection
+                defaultTechnicianId: isTechInNewTeam ? prev.defaultTechnicianId : null
+            };
+        });
+    };
 
     const updateMutation = useMutation({
         mutationFn: async (data: any) => {
@@ -200,10 +244,6 @@ export default function EquipmentDetailPage() {
                         </div>
 
                         <div className="flex gap-2">
-                            {/* Status Toggle Button - Only visible in Edit Mode to control logic or maybe always? 
-                                User asked "if anyone fill the scrap date then it become scap and not active and also if we need a option to change the state to active to scrap"
-                                Let's put a "Scrap" / "Reactivate" button. 
-                             */}
                             {isEditing && (
                                 <Button
                                     variant={formData.status === 'active' ? "destructive" : "secondary"}
@@ -251,11 +291,9 @@ export default function EquipmentDetailPage() {
                                     )}
                                 </Field>
 
-                                {/* Removed Company field as requested */}
-
                                 <Field label="Maintenance Team" isEditing={isEditing}>
                                     {isEditing ? (
-                                        <Select value={formData.maintenanceTeamId?.toString() || ""} onValueChange={v => setFormData({ ...formData, maintenanceTeamId: v ? parseInt(v) : null })}>
+                                        <Select value={formData.maintenanceTeamId?.toString() || ""} onValueChange={handleTeamChange}>
                                             <SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger>
                                             <SelectContent>
                                                 {teams?.map((t: any) => <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>)}
@@ -279,10 +317,10 @@ export default function EquipmentDetailPage() {
                             <div className="space-y-6">
                                 <Field label="Technician" isEditing={isEditing}>
                                     {isEditing ? (
-                                        <Select value={formData.defaultTechnicianId?.toString() || ""} onValueChange={v => setFormData({ ...formData, defaultTechnicianId: v ? parseInt(v) : null })}>
+                                        <Select value={formData.defaultTechnicianId?.toString() || ""} onValueChange={handleTechnicianChange}>
                                             <SelectTrigger><SelectValue placeholder="Select Technician" /></SelectTrigger>
                                             <SelectContent>
-                                                {users?.filter((u: any) => u.role === 'technician').map((u: any) => <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>)}
+                                                {filteredTechnicians.map((u: any) => <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
                                     ) : (

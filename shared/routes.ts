@@ -132,6 +132,23 @@ export const api = {
       path: '/api/teams',
       input: insertTeamSchema,
       responses: { 201: z.custom<typeof teams.$inferSelect>() }
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/teams/:id',
+      responses: {
+        200: z.custom<typeof teams.$inferSelect>(),
+        404: errorSchemas.notFound
+      }
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/teams/:id',
+      input: insertTeamSchema.partial(),
+      responses: {
+        200: z.custom<typeof teams.$inferSelect>(),
+        404: errorSchemas.notFound
+      }
     }
   },
   equipment: {

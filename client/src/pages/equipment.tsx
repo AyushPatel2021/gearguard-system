@@ -22,10 +22,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, Plus, Filter, MonitorSmartphone } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 export default function EquipmentPage() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const teamIdParam = searchParams.get("teamId");
+
   const { data: equipment, isLoading } = useEquipment();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -39,7 +43,9 @@ export default function EquipmentPage() {
         filterStatus === "scrapped" ? item.status === "scrapped" :
           true;
 
-    return matchesSearch && matchesFilter;
+    const matchesTeam = teamIdParam ? item.maintenanceTeamId === parseInt(teamIdParam) : true;
+
+    return matchesSearch && matchesFilter && matchesTeam;
   });
 
   return (
@@ -48,6 +54,14 @@ export default function EquipmentPage() {
         <div>
           <h1 className="text-3xl font-display font-bold text-slate-900">Equipment</h1>
           <p className="text-muted-foreground mt-1">Manage and track your machinery and assets.</p>
+          {teamIdParam && (
+            <div className="mt-2 inline-flex items-center gap-2 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-sm">
+              <span>Filtered by Team ID: {teamIdParam}</span>
+              <Button variant="ghost" size="icon" className="h-4 w-4 hover:bg-indigo-100 rounded-full" onClick={() => setLocation("/equipment")}>
+                <Search className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
         <Button className="gap-2 shadow-lg shadow-primary/20" onClick={() => setLocation("/equipment/new")}>
           <Plus className="h-4 w-4" />
