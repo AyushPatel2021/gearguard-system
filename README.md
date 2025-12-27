@@ -56,22 +56,26 @@ Before starting, ensure you have the following installed:
     npm install
     ```
 
-3.  **Configure Environment Variables**
-    Create a `.env` file in the root directory with the following variables:
-    ```env
-    DATABASE_URL=postgresql://user:password@localhost:5432/gearguard_db
-    SESSION_SECRET=your_super_secret_session_key
-    NODE_ENV=development
-    PORT=5000
+3.  **Database Setup**
+    First, ensure you have PostgreSQL installed and running. Then create the database:
+    ```bash
+    createdb -U postgres gearguard_db
     ```
 
-4.  **Database Migration**
+4.  **Configure Environment Variables**
+    Copy the example environment file to create your local `.env`:
+    ```bash
+    cp example.env .env
+    ```
+    Then edit `.env` with your specific configuration (database credentials, secrets, etc.).
+
+5.  **Database Migration**
     Push the schema to your PostgreSQL database:
     ```bash
     npm run db:push
     ```
 
-5.  **Start the Development Server**
+6.  **Start the Development Server**
     This command starts both the backend API and the frontend dev server concurrently:
     ```bash
     npm run dev
