@@ -127,6 +127,26 @@ export function useCategories() {
   });
 }
 
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (data: { name: string; description?: string }) => {
+      const res = await fetch(api.categories.create.path, {
+        method: api.categories.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create category");
+      return api.categories.create.responses[201].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.categories.list.path] });
+      toast({ title: "Category Created", description: "New equipment category has been added." });
+    },
+  });
+}
+
 export function useTeams() {
   return useQuery({
     queryKey: [api.teams.list.path],
@@ -134,6 +154,17 @@ export function useTeams() {
       const res = await fetch(api.teams.list.path);
       if (!res.ok) throw new Error("Failed to fetch teams");
       return api.teams.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await fetch("/api/users");
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return await res.json();
     },
   });
 }

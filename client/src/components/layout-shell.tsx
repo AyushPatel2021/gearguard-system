@@ -41,6 +41,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
     { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "technician", "employee"] },
     { name: "Equipment", href: "/equipment", icon: Wrench, roles: ["admin", "employee"] },
     { name: "Requests", href: "/requests", icon: ClipboardList, roles: ["admin", "technician", "employee"] },
+    { name: "Categories", href: "/categories", icon: ClipboardList, roles: ["admin"] },
     { name: "Teams & Users", href: "/teams", icon: Users, roles: ["admin"] },
     { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
   ];

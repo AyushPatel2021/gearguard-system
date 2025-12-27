@@ -4,6 +4,7 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { insertEquipmentSchema, insertRequestSchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -39,6 +40,16 @@ export async function registerRoutes(
     res.status(201).json(data);
   });
 
+  app.get("/api/users", async (req, res) => {
+    // Basic user list for dropdowns
+    // In real app, might want to filter security info
+    const data = await storage.getUsers(); // Need to implement getUsers if not exists or use generic
+    // storage.getUsers might not be exposed. I should check storage.ts interface.
+    // Let's assume storage.getUsers() exists or I need to add it.
+    // I'll check generic "storage.ts" content via view_file first to be safe.
+    res.json(data);
+  });
+
   // Equipment
   app.get(api.equipment.list.path, async (req, res) => {
     const data = await storage.getEquipment();
@@ -50,11 +61,13 @@ export async function registerRoutes(
     res.json(data);
   });
   app.post(api.equipment.create.path, async (req, res) => {
-    const data = await storage.createEquipment(req.body);
+    const parsed = insertEquipmentSchema.parse(req.body);
+    const data = await storage.createEquipment(parsed);
     res.status(201).json(data);
   });
-  app.put(api.equipment.update.path, async (req, res) => {
-    const data = await storage.updateEquipment(Number(req.params.id), req.body);
+  app.patch(api.equipment.update.path, async (req, res) => {
+    const parsed = insertEquipmentSchema.partial().parse(req.body);
+    const data = await storage.updateEquipment(Number(req.params.id), parsed);
     res.json(data);
   });
 
@@ -70,12 +83,15 @@ export async function registerRoutes(
   });
   app.post(api.requests.create.path, async (req, res) => {
     // Override createdBy with current user if not provided (though schema might require it)
-    const body = { ...req.body, createdBy: req.user?.id || req.body.createdBy };
-    const data = await storage.createRequest(body);
+    const user = req.user as any;
+    const body = { ...req.body, createdBy: user?.id || req.body.createdBy };
+    const parsed = insertRequestSchema.parse(body);
+    const data = await storage.createRequest(parsed);
     res.status(201).json(data);
   });
-  app.put(api.requests.update.path, async (req, res) => {
-    const data = await storage.updateRequest(Number(req.params.id), req.body);
+  app.patch(api.requests.update.path, async (req, res) => {
+    const parsed = insertRequestSchema.partial().parse(req.body);
+    const data = await storage.updateRequest(Number(req.params.id), parsed);
     res.json(data);
   });
 

@@ -9,7 +9,12 @@ import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
 import Dashboard from "@/pages/dashboard";
 import EquipmentPage from "@/pages/equipment";
+import EquipmentDetailPage from "@/pages/equipment-detail";
 import RequestsPage from "@/pages/requests";
+import CategoriesPage from "@/pages/categories";
+import CategoryDetailPage from "@/pages/categories-detail";
+import TeamsPage from "@/pages/teams";
+import TeamDetailPage from "@/pages/teams-detail";
 import { ReactNode } from "react";
 
 function PrivateRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -39,14 +44,24 @@ function Router() {
       <Route path="/equipment">
         <PrivateRoute component={EquipmentPage} />
       </Route>
+      <Route path="/equipment/:id">
+        <PrivateRoute component={EquipmentDetailPage} />
+      </Route>
       <Route path="/requests">
         <PrivateRoute component={RequestsPage} />
       </Route>
       {/* Placeholder pages for navigation */}
+      <Route path="/categories">
+        <PrivateRoute component={CategoriesPage} />
+      </Route>
+      <Route path="/categories/:id">
+        <PrivateRoute component={CategoryDetailPage} />
+      </Route>
       <Route path="/teams">
-        <PrivateRoute component={() => (
-          <div className="p-8"><h1 className="text-2xl font-bold">Teams & Users - Coming Soon</h1></div>
-        )} />
+        <PrivateRoute component={TeamsPage} />
+      </Route>
+      <Route path="/teams/:id">
+        <PrivateRoute component={TeamDetailPage} />
       </Route>
       <Route path="/settings">
         <PrivateRoute component={() => (

@@ -61,6 +61,9 @@ export const equipment = pgTable("equipment", {
   maintenanceTeamId: integer("maintenance_team_id").references(() => teams.id),
   defaultTechnicianId: integer("default_technician_id").references(() => users.id),
   status: statusEnum("status").default('active').notNull(),
+  assignedDate: timestamp("assigned_date"),
+  scrapDate: timestamp("scrap_date"),
+  employeeId: integer("employee_id").references(() => users.id),
   notes: text("notes"),
 });
 
@@ -134,8 +137,25 @@ export const insertDepartmentSchema = createInsertSchema(departments).omit({ id:
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true });
-export const insertEquipmentSchema = createInsertSchema(equipment).omit({ id: true });
-export const insertRequestSchema = createInsertSchema(maintenanceRequests).omit({ id: true, createdAt: true });
+
+// Helper for coercing timestamp strings to Date objects
+const zTimestamp = z.preprocess((arg) => {
+  if (typeof arg === "string" && arg.length > 0) return new Date(arg);
+  if (arg === "" || arg === null) return null;
+  return arg;
+}, z.date().nullable().optional());
+
+export const insertEquipmentSchema = createInsertSchema(equipment, {
+  assignedDate: zTimestamp,
+  scrapDate: zTimestamp,
+}).omit({ id: true });
+
+export const insertRequestSchema = createInsertSchema(maintenanceRequests, {
+  scheduledDate: zTimestamp,
+  actualStartDate: zTimestamp,
+  completedDate: zTimestamp,
+}).omit({ id: true, createdAt: true });
+
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, timestamp: true });
 
 export type User = typeof users.$inferSelect;
