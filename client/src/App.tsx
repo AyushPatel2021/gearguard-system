@@ -11,13 +11,20 @@ import Dashboard from "@/pages/dashboard";
 import EquipmentPage from "@/pages/equipment";
 import EquipmentDetailPage from "@/pages/equipment-detail";
 import RequestsPage from "@/pages/requests";
+import RequestDetailPage from "@/pages/requests-detail";
+import WorkCentersPage from "@/pages/work-centers";
+import WorkCenterDetailPage from "@/pages/work-centers-detail";
 import CategoriesPage from "@/pages/categories";
 import CategoryDetailPage from "@/pages/categories-detail";
 import TeamsPage from "@/pages/teams";
 import TeamDetailPage from "@/pages/teams-detail";
+import UsersPage from "@/pages/users";
+import UserDetailPage from "@/pages/users-detail";
+import ProfilePage from "@/pages/profile";
 import { ReactNode } from "react";
 
-function PrivateRoute({ component: Component }: { component: () => JSX.Element }) {
+
+function PrivateRoute({ component: Component }: { component: () => JSX.Element }): JSX.Element | null {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -27,18 +34,24 @@ function PrivateRoute({ component: Component }: { component: () => JSX.Element }
 
   if (!user) {
     setLocation("/auth");
-    return null;
+    return <></>;
   }
+
 
   return <Component />;
 }
+
 
 function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset-password/:token" component={ResetPasswordPage} />
+      <Route path="/profile">
+        <PrivateRoute component={ProfilePage} />
+      </Route>
       <Route path="/">
+
         <PrivateRoute component={Dashboard} />
       </Route>
       <Route path="/equipment">
@@ -50,6 +63,16 @@ function Router() {
       <Route path="/requests">
         <PrivateRoute component={RequestsPage} />
       </Route>
+      <Route path="/requests/:id">
+        <PrivateRoute component={RequestDetailPage} />
+      </Route>
+      <Route path="/work-centers">
+        <PrivateRoute component={WorkCentersPage} />
+      </Route>
+      <Route path="/work-centers/:id">
+        <PrivateRoute component={WorkCenterDetailPage} />
+      </Route>
+
       {/* Placeholder pages for navigation */}
       <Route path="/categories">
         <PrivateRoute component={CategoriesPage} />
@@ -63,10 +86,11 @@ function Router() {
       <Route path="/teams/:id">
         <PrivateRoute component={TeamDetailPage} />
       </Route>
-      <Route path="/settings">
-        <PrivateRoute component={() => (
-          <div className="p-8"><h1 className="text-2xl font-bold">Settings - Coming Soon</h1></div>
-        )} />
+      <Route path="/users">
+        <PrivateRoute component={UsersPage} />
+      </Route>
+      <Route path="/users/:id">
+        <PrivateRoute component={UserDetailPage} />
       </Route>
       <Route component={NotFound} />
     </Switch>

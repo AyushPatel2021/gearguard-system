@@ -74,7 +74,7 @@ export function MultiSelect({ options, selected, onChange, placeholder = "Select
                                     }}
                                     onClick={() => handleUnselect(value)}
                                 >
-                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    <X className="h-3 w-3 text-foreground" />
                                 </button>
                             </Badge>
                         );

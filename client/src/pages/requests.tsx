@@ -67,7 +67,7 @@ export default function RequestsPage() {
 
   const getTechnicianNames = (ids?: number[]) => {
     if (!ids || ids.length === 0) return null;
-    return ids.map(id => users?.find(u => u.id === id)?.name).filter(Boolean);
+    return ids.map(id => users?.find((u: any) => u.id === id)?.name).filter(Boolean);
   };
 
   return (
@@ -91,7 +91,9 @@ export default function RequestsPage() {
             </h1>
             <p className="text-muted-foreground mt-1">Track and manage repair tickets.</p>
           </div>
-          <RequestDialog preselectedEquipmentId={equipmentId || undefined} />
+          <Button onClick={() => setLocation(equipmentId ? `/requests/new?equipmentId=${equipmentId}` : "/requests/new")}>
+            New Request
+          </Button>
         </div>
 
         <Tabs defaultValue="list" className="w-full">
@@ -133,7 +135,11 @@ export default function RequestsPage() {
                       </TableRow>
                     ) : (
                       filteredRequests?.map((request: any) => (
-                        <TableRow key={request.id} className="hover:bg-slate-50/50">
+                        <TableRow
+                          key={request.id}
+                          className="hover:bg-slate-50/50 cursor-pointer"
+                          onClick={() => setLocation(`/requests/${request.id}`)}
+                        >
                           <TableCell className="font-medium">{request.subject}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
@@ -159,7 +165,10 @@ export default function RequestsPage() {
                           </TableCell>
                           {!equipmentId && <TableCell>{request.equipmentId}</TableCell>}
                           <TableCell className="text-right">
-                            <RequestActions request={request} />
+                            {/* Prevent row click propagation for actions menu if needed, though menu usually handles it */}
+                            <div onClick={e => e.stopPropagation()}>
+                              <RequestActions request={request} />
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

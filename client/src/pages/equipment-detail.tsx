@@ -110,7 +110,10 @@ export default function EquipmentDetailPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
-            if (!res.ok) throw new Error("Failed to update equipment");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to update equipment");
+            }
             return res.json();
         },
         onSuccess: () => {
@@ -119,8 +122,8 @@ export default function EquipmentDetailPage() {
             toast({ title: "Saved", description: "Equipment details updated." });
             setIsEditing(false);
         },
-        onError: () => {
-            toast({ title: "Error", description: "Failed to save changes.", variant: "destructive" });
+        onError: (error: Error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     });
 

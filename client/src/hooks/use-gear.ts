@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { api, buildUrl } from "@shared/routes";
-import { InsertEquipment, InsertRequest } from "@shared/schema";
+import { InsertEquipment, InsertRequest, WorkCenter } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 // === EQUIPMENT ===
@@ -39,12 +40,22 @@ export function useCreateEquipment() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create equipment");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create equipment");
+      }
       return api.equipment.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.equipment.list.path] });
       toast({ title: "Equipment Added", description: "New asset has been registered." });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     },
   });
 }
@@ -61,6 +72,31 @@ export function useRequests() {
     },
   });
 }
+export function useWorkCenters() {
+  return useQuery({
+    queryKey: [api.workCenters.list.path],
+    queryFn: async (): Promise<WorkCenter[]> => {
+      const res = await fetch(api.workCenters.list.path);
+      if (!res.ok) throw new Error("Failed to fetch work centers");
+      return await res.json();
+    },
+  });
+}
+
+export function useWorkCenterDetail(id: number) {
+  return useQuery({
+    queryKey: [api.workCenters.get.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.workCenters.get.path, { id });
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch work center details");
+      return await res.json();
+    },
+    enabled: id > 0,
+  });
+}
+
 
 export function useCreateRequest() {
   const queryClient = useQueryClient();

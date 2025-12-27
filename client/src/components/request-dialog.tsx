@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertRequestSchema, InsertRequest } from "@shared/schema";
-import { useCreateRequest, useEquipment, useRequests, useUsers } from "@/hooks/use-gear";
+import { insertRequestSchema } from "@shared/schema";
+import { useCreateRequest, useEquipment, useUsers, useWorkCenters } from "@/hooks/use-gear";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +36,9 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 
 const formSchema = insertRequestSchema.extend({
-  equipmentId: z.coerce.number(),
+  equipmentId: z.coerce.number().optional(),
+  workCenterId: z.coerce.number().optional(),
+  maintenanceFor: z.enum(["equipment", "work_center"]).default("equipment"),
   priority: z.enum(["low", "medium", "high"]),
   requestType: z.enum(["corrective", "preventive"]),
   technicianIds: z.array(z.string()).optional(),
@@ -54,6 +56,7 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
   const { user } = useAuth();
   const createRequest = useCreateRequest();
   const { data: equipmentList } = useEquipment();
+  const { data: workCenters } = useWorkCenters();
   const { data: users } = useUsers();
 
   const technicians = users?.filter((u: any) => u.role === 'technician') || [];
@@ -68,6 +71,8 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
       requestType: "corrective",
       status: "new",
       equipmentId: preselectedEquipmentId,
+      workCenterId: undefined,
+      maintenanceFor: "equipment",
       createdBy: user?.id,
       technicianIds: [],
     },
@@ -75,20 +80,18 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
 
   const onSubmit = (data: FormValues) => {
     // Determine the maintenance team from the selected equipment
-    const selectedEq = equipmentList?.find(e => e.id === data.equipmentId);
-
-    // Convert string array to number array for backend (handled in routes usually, but payload type expects it or extra prop)
-    // The insertRequestSchema doesn't have technicianIds, so we cast payload to any or extend interface
+    // Note: If maintenanceFor is work_center, we might need logic for team, but for now fallback to null
+    let maintenanceTeamId = null;
+    if (data.maintenanceFor === 'equipment' && data.equipmentId) {
+      const selectedEq = equipmentList?.find(e => e.id === data.equipmentId);
+      maintenanceTeamId = selectedEq?.maintenanceTeamId || null;
+    }
 
     const payload: any = {
       ...data,
-      maintenanceTeamId: selectedEq?.maintenanceTeamId || null,
+      maintenanceTeamId,
       createdBy: user?.id!,
       status: "new",
-      // technicianIds is passed through data, but we need to ensure it's number[] or handled by backend parser which expects number[] or string[] mapping
-      // Our backend route handles mapping string[] to number[] if needed, let's verify route. 
-      // Route says: `const cleanTechnicianIds = Array.isArray(technicianIds) ? technicianIds.map(Number) : undefined;`
-      // So passing string array is fine, route handles coercion.
     };
 
     createRequest.mutate(payload, {
@@ -135,32 +138,85 @@ export function RequestDialog({ preselectedEquipmentId, trigger }: RequestDialog
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="equipmentId"
+                name="maintenanceFor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Equipment</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value?.toString()}
-                      disabled={!!preselectedEquipmentId}
-                    >
+                    <FormLabel>Maintenance For</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select equipment" />
+                          <SelectValue placeholder="Select target" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {equipmentList?.map((eq) => (
-                          <SelectItem key={eq.id} value={eq.id.toString()}>
-                            {eq.name} ({eq.serialNumber})
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="equipment">Equipment</SelectItem>
+                        <SelectItem value="work_center">Work Center</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {form.watch("maintenanceFor") === "equipment" ? (
+                <FormField
+                  control={form.control}
+                  name="equipmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Equipment</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        defaultValue={field.value?.toString()}
+                        disabled={!!preselectedEquipmentId}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select equipment" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {equipmentList?.map((eq) => (
+                            <SelectItem key={eq.id} value={eq.id.toString()}>
+                              {eq.name} ({eq.serialNumber})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="workCenterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Work Center</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        defaultValue={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select work center" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {workCenters?.map((wc) => (
+                            <SelectItem key={wc.id} value={wc.id.toString()}>
+                              {wc.name} ({wc.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
 
               <FormField
                 control={form.control}

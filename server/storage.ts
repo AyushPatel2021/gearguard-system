@@ -1,7 +1,8 @@
 import { db, pool } from "./db";
+
 import {
-  users, departments, categories, teams, equipment, maintenanceRequests, activityLogs, requestTechnicians, teamMembers,
-  type User, type InsertUser, type Equipment, type MaintenanceRequest, type InsertRequest, type InsertEquipment
+  users, departments, categories, teams, equipment, maintenanceRequests, activityLogs, requestTechnicians, teamMembers, worksheets, workCenters,
+  type User, type InsertUser, type Equipment, type MaintenanceRequest, type InsertRequest, type InsertEquipment, type WorkCenter, type InsertWorkCenter, type InsertWorksheet
 } from "@shared/schema";
 import { eq, inArray } from "drizzle-orm";
 import session from "express-session";
@@ -10,18 +11,25 @@ const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   sessionStore: session.Store;
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: number): Promise<User & { teamIds: number[] } | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser & { teamIds?: number[] }): Promise<User>;
   getUsers(): Promise<User[]>;
   updateUserResetToken(id: number, token: string | null, expiry: Date | null): Promise<void>;
   updateUserPassword(id: number, password: string): Promise<void>;
+  updateUser(id: number, data: Partial<InsertUser> & { teamIds?: number[] }): Promise<User>;
+
 
   getEquipment(): Promise<Equipment[]>;
   getEquipmentById(id: number): Promise<Equipment | undefined>;
   createEquipment(data: InsertEquipment): Promise<Equipment>;
   updateEquipment(id: number, data: Partial<InsertEquipment>): Promise<Equipment>;
+
+  getWorkCenters(): Promise<WorkCenter[]>;
+  getWorkCenter(id: number): Promise<WorkCenter | undefined>;
+  createWorkCenter(data: InsertWorkCenter): Promise<WorkCenter>;
+  updateWorkCenter(id: number, data: Partial<InsertWorkCenter>): Promise<WorkCenter>;
 
   getRequests(): Promise<(MaintenanceRequest & { technicianIds: number[] })[]>;
   getRequest(id: number): Promise<(MaintenanceRequest & { technicianIds: number[] }) | undefined>;
@@ -48,10 +56,13 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: number): Promise<User & { teamIds: number[] } | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    if (!user) return undefined;
+    const members = await db.select().from(teamMembers).where(eq(teamMembers.userId, id));
+    return { ...user, teamIds: members.map(m => m.teamId) };
   }
+
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
@@ -63,10 +74,21 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+  async createUser(data: InsertUser & { teamIds?: number[] }): Promise<User> {
+    const { teamIds, ...userData } = data;
+    const [user] = await db.insert(users).values(userData).returning();
+
+    if (teamIds && teamIds.length > 0) {
+      await db.insert(teamMembers).values(
+        teamIds.map(teamId => ({
+          userId: user.id,
+          teamId
+        }))
+      );
+    }
     return user;
   }
+
 
   async getUsers(): Promise<User[]> {
     return await db.select().from(users);
@@ -79,6 +101,25 @@ export class DatabaseStorage implements IStorage {
   async updateUserPassword(id: number, password: string): Promise<void> {
     await db.update(users).set({ password, resetToken: null, resetTokenExpiry: null }).where(eq(users.id, id));
   }
+
+  async updateUser(id: number, data: Partial<InsertUser> & { teamIds?: number[] }): Promise<User> {
+    const { teamIds, ...userData } = data;
+    const [user] = await db.update(users).set(userData).where(eq(users.id, id)).returning();
+
+    if (teamIds !== undefined) {
+      await db.delete(teamMembers).where(eq(teamMembers.userId, id));
+      if (teamIds.length > 0) {
+        await db.insert(teamMembers).values(
+          teamIds.map(teamId => ({
+            userId: id,
+            teamId
+          }))
+        );
+      }
+    }
+    return user;
+  }
+
 
   async getEquipment(): Promise<Equipment[]> {
     return await db.select().from(equipment);
@@ -223,8 +264,35 @@ export class DatabaseStorage implements IStorage {
   async getTeamMembers() { return await db.select().from(teamMembers); }
   async getLogs() { return await db.select().from(activityLogs); }
 
+  // Worksheets
+  async getWorksheetsByRequest(requestId: number) {
+    return await db.select().from(worksheets).where(eq(worksheets.requestId, requestId));
+  }
+  async createWorksheet(data: any) {
+    const [res] = await db.insert(worksheets).values(data).returning();
+    return res;
+  }
+  async deleteWorksheet(id: number) {
+    await db.delete(worksheets).where(eq(worksheets.id, id));
+  }
+
   async createDepartment(data: any) { const [res] = await db.insert(departments).values(data).returning(); return res; }
   async createCategory(data: any) { const [res] = await db.insert(categories).values(data).returning(); return res; }
+
+  // Work Centers
+  async getWorkCenters() { return await db.select().from(workCenters); }
+  async getWorkCenter(id: number) {
+    const [wc] = await db.select().from(workCenters).where(eq(workCenters.id, id));
+    return wc;
+  }
+  async createWorkCenter(data: InsertWorkCenter) {
+    const [res] = await db.insert(workCenters).values(data as any).returning();
+    return res;
+  }
+  async updateWorkCenter(id: number, data: Partial<InsertWorkCenter>) {
+    const [res] = await db.update(workCenters).set(data as any).where(eq(workCenters.id, id)).returning();
+    return res;
+  }
 
 }
 

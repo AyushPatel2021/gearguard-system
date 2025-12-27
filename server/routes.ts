@@ -1,10 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, hashPassword, comparePasswords } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { insertEquipmentSchema, insertRequestSchema } from "@shared/schema";
+import { insertUserSchema, insertTeamSchema, insertEquipmentSchema, insertRequestSchema, insertCategorySchema, insertDepartmentSchema, insertWorkCenterSchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -67,6 +67,70 @@ export async function registerRoutes(
     const data = await storage.getUsers();
     res.json(data);
   });
+  app.get("/api/users/:id", async (req, res) => {
+    const user = await storage.getUser(Number(req.params.id));
+    if (!user) return res.sendStatus(404);
+    res.json(user);
+  });
+  app.post("/api/users", async (req, res) => {
+    try {
+      const { password, ...rest } = req.body;
+      // Hash password
+      const hashedPassword = await hashPassword(password);
+      const data = await storage.createUser({ ...rest, password: hashedPassword });
+      res.status(201).json(data);
+
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        if (error?.constraint?.includes('username')) {
+          return res.status(400).json({ error: "Username already exists." });
+        }
+        if (error?.constraint?.includes('email')) {
+          return res.status(400).json({ error: "Email already exists." });
+        }
+      }
+      console.error("User creation error:", error);
+      return res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const { password, ...rest } = req.body;
+      let updateData: any = { ...rest };
+
+      // Only hash password if provided
+      if (password) {
+        if (!rest.currentPassword) {
+          return res.status(400).json({ error: "Current password is required to set a new password" });
+        }
+
+        const currentUser = await storage.getUser(Number(req.params.id));
+        if (!currentUser) return res.sendStatus(404);
+
+        const isValid = await comparePasswords(rest.currentPassword, currentUser.password);
+        if (!isValid) {
+          return res.status(400).json({ error: "Incorrect current password" });
+        }
+
+        updateData.password = await hashPassword(password);
+      }
+
+
+      const data = await storage.updateUser(Number(req.params.id), updateData);
+      res.json(data);
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        if (error?.constraint?.includes('username')) {
+          return res.status(400).json({ error: "Username already exists." });
+        }
+        if (error?.constraint?.includes('email')) {
+          return res.status(400).json({ error: "Email already exists." });
+        }
+      }
+      console.error("User update error:", error);
+      return res.status(500).json({ error: "Failed to update user" });
+    }
+  });
 
   // Equipment
   app.get(api.equipment.list.path, async (req, res) => {
@@ -74,19 +138,37 @@ export async function registerRoutes(
     res.json(data);
   });
   app.get(api.equipment.get.path, async (req, res) => {
-    const data = await storage.getEquipmentById(Number(req.params.id));
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const data = await storage.getEquipmentById(id);
     if (!data) return res.sendStatus(404);
     res.json(data);
   });
   app.post(api.equipment.create.path, async (req, res) => {
-    const parsed = insertEquipmentSchema.parse(req.body);
-    const data = await storage.createEquipment(parsed);
-    res.status(201).json(data);
+    try {
+      const parsed = insertEquipmentSchema.parse(req.body);
+      const data = await storage.createEquipment(parsed);
+      res.status(201).json(data);
+    } catch (error: any) {
+      if (error?.code === '23505' && error?.constraint?.includes('serial_number')) {
+        return res.status(400).json({ error: "Serial number already exists. Please use a unique serial number." });
+      }
+      console.error("Equipment creation error:", error);
+      return res.status(500).json({ error: "Failed to create equipment" });
+    }
   });
   app.patch(api.equipment.update.path, async (req, res) => {
-    const parsed = insertEquipmentSchema.partial().parse(req.body);
-    const data = await storage.updateEquipment(Number(req.params.id), parsed);
-    res.json(data);
+    try {
+      const parsed = insertEquipmentSchema.partial().parse(req.body);
+      const data = await storage.updateEquipment(Number(req.params.id), parsed);
+      res.json(data);
+    } catch (error: any) {
+      if (error?.code === '23505' && error?.constraint?.includes('serial_number')) {
+        return res.status(400).json({ error: "Serial number already exists. Please use a unique serial number." });
+      }
+      console.error("Equipment update error:", error);
+      return res.status(500).json({ error: "Failed to update equipment" });
+    }
   });
 
   // Requests
@@ -95,7 +177,9 @@ export async function registerRoutes(
     res.json(data);
   });
   app.get(api.requests.get.path, async (req, res) => {
-    const data = await storage.getRequest(Number(req.params.id));
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const data = await storage.getRequest(id);
     if (!data) return res.sendStatus(404);
     res.json(data);
   });
@@ -120,7 +204,72 @@ export async function registerRoutes(
     // Validate technicianIds if present
     const cleanTechnicianIds = Array.isArray(technicianIds) ? technicianIds.map(Number) : undefined;
 
+    // Get Current Request State BEFORE updating
+    const currentRequest = await storage.getRequest(Number(req.params.id));
+
+    // Auto-Stage Transition: If request is 'new' and scheduledDate is being set
+    if (currentRequest && currentRequest.status === 'new' && parsed.scheduledDate) {
+      parsed.status = 'in_progress';
+    }
+
     const data = await storage.updateRequest(Number(req.params.id), { ...parsed, technicianIds: cleanTechnicianIds });
+
+    // Scrap Logic: If status changed to 'scrap', scrap the associated equipment
+    if (parsed.status === 'scrap') {
+      const request = await storage.getRequest(Number(req.params.id));
+      if (request && request.equipmentId) {
+        await storage.updateEquipment(request.equipmentId, {
+          status: 'scrapped',
+          scrapDate: new Date()
+        });
+      }
+    }
+
+    res.json(data);
+  });
+
+  // Worksheets
+  app.get("/api/requests/:id/worksheets", async (req, res) => {
+    const data = await storage.getWorksheetsByRequest(Number(req.params.id));
+    res.json(data);
+  });
+  app.post("/api/requests/:id/worksheets", async (req, res) => {
+    const user = req.user as any;
+    const { startTime, endTime, description } = req.body;
+    const data = await storage.createWorksheet({
+      requestId: Number(req.params.id),
+      userId: user?.id || req.body.userId || 1,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      description,
+    });
+    res.status(201).json(data);
+  });
+  app.delete("/api/worksheets/:id", async (req, res) => {
+    await storage.deleteWorksheet(Number(req.params.id));
+    res.sendStatus(204);
+  });
+
+  // Work Centers
+  app.get(api.workCenters.list.path, async (req, res) => {
+    const data = await storage.getWorkCenters();
+    res.json(data);
+  });
+  app.get(api.workCenters.get.path, async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+    const data = await storage.getWorkCenter(id);
+    if (!data) return res.sendStatus(404);
+    res.json(data);
+  });
+  app.post(api.workCenters.create.path, async (req, res) => {
+    const parsed = insertWorkCenterSchema.parse(req.body);
+    const data = await storage.createWorkCenter(parsed);
+    res.status(201).json(data);
+  });
+  app.patch(api.workCenters.update.path, async (req, res) => {
+    const parsed = insertWorkCenterSchema.partial().parse(req.body);
+    const data = await storage.updateWorkCenter(Number(req.params.id), parsed);
     res.json(data);
   });
 
@@ -135,7 +284,7 @@ export async function registerRoutes(
   return httpServer;
 }
 
-import { hashPassword } from "./auth";
+
 
 async function seedDatabase() {
   const existingUsers = await storage.getUserByUsername("admin");
@@ -148,10 +297,8 @@ async function seedDatabase() {
     const deptIT = await storage.createDepartment({ name: "IT", description: "Information Technology" });
     const deptOps = await storage.createDepartment({ name: "Operations", description: "Plant Operations" });
 
-    // Users
-    await storage.createUser({ username: "admin", email: "admin@gearguard.com", password: adminPassword, name: "Admin User", role: "admin", departmentId: deptIT.id, isActive: true });
-    await storage.createUser({ username: "tech", email: "tech@gearguard.com", password: techPassword, name: "John Tech", role: "technician", departmentId: deptOps.id, isActive: true });
-    await storage.createUser({ username: "user", email: "user@gearguard.com", password: userPassword, name: "Jane Employee", role: "employee", departmentId: deptOps.id, isActive: true });
+
+
 
     // Categories
     const catComputers = await storage.createCategory({ name: "Computers", description: "Laptops and Desktops" });
@@ -160,6 +307,12 @@ async function seedDatabase() {
     // Teams
     const teamIT = await storage.createTeam({ name: "IT Support", specialization: "IT", description: "Handle IT requests" });
     const teamMech = await storage.createTeam({ name: "Maintenance Crew", specialization: "Mechanical", description: "Heavy repairs" });
+
+    // Users
+    await storage.createUser({ username: "admin", email: "admin@gearguard.com", password: adminPassword, name: "Admin User", role: "admin", isActive: true });
+    await storage.createUser({ username: "tech", email: "tech@gearguard.com", password: techPassword, name: "John Tech", role: "technician", isActive: true, teamIds: [teamMech.id] });
+    await storage.createUser({ username: "user", email: "user@gearguard.com", password: userPassword, name: "Jane Employee", role: "employee", isActive: true });
+
 
     // Equipment
     await storage.createEquipment({

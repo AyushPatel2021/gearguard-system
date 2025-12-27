@@ -118,12 +118,16 @@ function CreateCategoryDialog({ open, onOpenChange }: { open: boolean, onOpenCha
     });
 
     const onSubmit = (data: z.infer<typeof insertCategorySchema>) => {
-        createCategory.mutate(data, {
-            onSuccess: () => {
-                onOpenChange(false);
-                form.reset();
-            },
-        });
+        createCategory.mutate(
+            { ...data, description: data.description ?? undefined },
+            {
+                onSuccess: () => {
+                    onOpenChange(false);
+                    form.reset();
+                },
+            }
+        );
+
     };
 
     return (

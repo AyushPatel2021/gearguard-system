@@ -1,4 +1,5 @@
-import { pgTable, text, serial, integer, boolean, timestamp, date, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, date, pgEnum, real, json } from "drizzle-orm/pg-core";
+
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -22,8 +23,9 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: roleEnum("role").default('employee').notNull(),
-  departmentId: integer("department_id").references(() => departments.id),
+  avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").default(true).notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
@@ -67,20 +69,42 @@ export const equipment = pgTable("equipment", {
   notes: text("notes"),
 });
 
+
+export const workCenters = pgTable("work_centers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  tag: text("tag"),
+  alternativeWorkCenters: json("alternative_work_centers").$type<string[]>(), // Store IDs or names of alternative WCs
+  costPerHour: real("cost_per_hour").default(0), // Using real for dollar values including cents
+  capacity: integer("capacity").default(1),
+  timeEfficiency: integer("time_efficiency").default(100),
+  oeeTarget: integer("oee_target").default(0),
+  status: statusEnum("status").default('active').notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const maintenanceForEnum = pgEnum('maintenance_for', ['equipment', 'work_center']);
+
 export const maintenanceRequests = pgTable("maintenance_requests", {
+
   id: serial("id").primaryKey(),
   subject: text("subject").notNull(),
   description: text("description").notNull(),
   requestType: requestTypeEnum("request_type").notNull(),
-  equipmentId: integer("equipment_id").references(() => equipment.id).notNull(),
+  status: requestStatusEnum("status").default('new').notNull(),
+  priority: priorityEnum("priority").default('medium').notNull(),
+  maintenanceFor: maintenanceForEnum("maintenance_for").default('equipment').notNull(),
+  equipmentId: integer("equipment_id").references(() => equipment.id),
+  workCenterId: integer("work_center_id").references(() => workCenters.id),
+  instructions: text("instructions"),
   maintenanceTeamId: integer("maintenance_team_id").references(() => teams.id),
   assignedTechnicianId: integer("assigned_technician_id").references(() => users.id),
+  assignedToId: integer("assigned_to_id").references(() => users.id), // Employee for Preventive flow
   scheduledDate: timestamp("scheduled_date"),
   actualStartDate: timestamp("actual_start_date"),
   completedDate: timestamp("completed_date"),
   durationHours: integer("duration_hours"),
-  priority: priorityEnum("priority").default('medium').notNull(),
-  status: requestStatusEnum("status").default('new').notNull(),
   createdBy: integer("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -100,9 +124,19 @@ export const requestTechnicians = pgTable("request_technicians", {
   technicianId: integer("technician_id").references(() => users.id).notNull(),
 });
 
+// Worksheets (Timesheets for Requests)
+export const worksheets = pgTable("worksheets", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").references(() => maintenanceRequests.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
-  department: one(departments, { fields: [users.departmentId], references: [departments.id] }),
   teamMemberships: many(teamMembers),
   assignedEquipment: many(equipment, { relationName: "assignedEmployee" }),
   defaultForEquipment: many(equipment, { relationName: "defaultTechnician" }),
@@ -117,15 +151,23 @@ export const equipmentRelations = relations(equipment, ({ one, many }) => ({
   assignedEmployee: one(users, { fields: [equipment.assignedEmployeeId], references: [users.id], relationName: "assignedEmployee" }),
   maintenanceTeam: one(teams, { fields: [equipment.maintenanceTeamId], references: [teams.id] }),
   defaultTechnician: one(users, { fields: [equipment.defaultTechnicianId], references: [users.id], relationName: "defaultTechnician" }),
-  requests: many(maintenanceRequests),
+  requests: many(maintenanceRequests, { relationName: "equipmentRequests" }),
+}));
+
+export const workCentersRelations = relations(workCenters, ({ many }) => ({
+  requests: many(maintenanceRequests, { relationName: "workCenterRequests" }),
 }));
 
 export const maintenanceRequestsRelations = relations(maintenanceRequests, ({ one, many }) => ({
-  equipment: one(equipment, { fields: [maintenanceRequests.equipmentId], references: [equipment.id] }),
+  equipment: one(equipment, { fields: [maintenanceRequests.equipmentId], references: [equipment.id], relationName: "equipmentRequests" }),
+  workCenter: one(workCenters, { fields: [maintenanceRequests.workCenterId], references: [workCenters.id], relationName: "workCenterRequests" }),
   maintenanceTeam: one(teams, { fields: [maintenanceRequests.maintenanceTeamId], references: [teams.id] }),
   assignedTechnician: one(users, { fields: [maintenanceRequests.assignedTechnicianId], references: [users.id], relationName: "assignedTechnician" }),
-  technicians: many(requestTechnicians),
+  assignedTo: one(users, { fields: [maintenanceRequests.assignedToId], references: [users.id], relationName: "assignedToEmployee" }),
   creator: one(users, { fields: [maintenanceRequests.createdBy], references: [users.id], relationName: "requestCreator" }),
+  technicians: many(requestTechnicians),
+  activityLogs: many(activityLogs),
+  worksheets: many(worksheets),
 }));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
@@ -144,6 +186,11 @@ export const requestTechniciansRelations = relations(requestTechnicians, ({ one 
   technician: one(users, { fields: [requestTechnicians.technicianId], references: [users.id] }),
 }));
 
+export const worksheetsRelations = relations(worksheets, ({ one }) => ({
+  request: one(maintenanceRequests, { fields: [worksheets.requestId], references: [maintenanceRequests.id] }),
+  user: one(users, { fields: [worksheets.userId], references: [users.id] }),
+}));
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true });
@@ -158,6 +205,11 @@ const zTimestamp = z.preprocess((arg) => {
   if (arg === "" || arg === null) return null;
   return arg;
 }, z.date().nullable().optional());
+
+export const insertWorkCenterSchema = createInsertSchema(workCenters).omit({ id: true, createdAt: true });
+
+export type WorkCenter = typeof workCenters.$inferSelect;
+export type InsertWorkCenter = z.infer<typeof insertWorkCenterSchema>;
 
 export const insertEquipmentSchema = createInsertSchema(equipment, {
   assignedDate: zTimestamp,
@@ -183,4 +235,17 @@ export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;
 export type InsertRequest = z.infer<typeof insertRequestSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type RequestTechnician = typeof requestTechnicians.$inferSelect;
+export type Worksheet = typeof worksheets.$inferSelect;
+
+// Worksheet Insert Schema
+const zRequiredTimestamp = z.preprocess((arg) => {
+  if (typeof arg === "string" && arg.length > 0) return new Date(arg);
+  return arg;
+}, z.date());
+
+export const insertWorksheetSchema = createInsertSchema(worksheets, {
+  startTime: zRequiredTimestamp,
+  endTime: zRequiredTimestamp,
+}).omit({ id: true, createdAt: true });
+export type InsertWorksheet = z.infer<typeof insertWorksheetSchema>;
 

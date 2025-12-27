@@ -8,7 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Save, Pencil, Users, MonitorSmartphone } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
+import { Team } from "@shared/schema";
 import { Textarea } from "@/components/ui/textarea";
+
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 
@@ -31,7 +33,8 @@ export default function TeamDetailPage() {
     // We need to fetch the specific team details including members if editing
     // Currently useTeams returns list. If we updated backend to return members in list, we could use that.
     // The previous storage update added memberIds to getTeams.
-    const team = teams?.find(t => t.id === id) as (typeof teams extends (infer U)[] ? U : never) & { memberIds?: number[] } | undefined;
+    const team = teams?.find(t => t.id === id) as (Team & { memberIds?: number[] }) | undefined;
+
 
     const [isEditing, setIsEditing] = useState(isNew);
     const [formData, setFormData] = useState<any>({ name: "", specialization: "", description: "", memberIds: [] });

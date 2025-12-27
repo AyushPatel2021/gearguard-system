@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Users,
   Settings,
+  Settings2,
   LogOut,
   Menu,
   X,
@@ -39,11 +40,12 @@ export function LayoutShell({ children }: LayoutShellProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "technician", "employee"] },
-    { name: "Equipment", href: "/equipment", icon: Wrench, roles: ["admin", "employee"] },
     { name: "Requests", href: "/requests", icon: ClipboardList, roles: ["admin", "technician", "employee"] },
+    { name: "Work Centers", href: "/work-centers", icon: Settings2, roles: ["admin"] },
+    { name: "Equipment", href: "/equipment", icon: Wrench, roles: ["admin", "employee"] },
     { name: "Categories", href: "/categories", icon: ClipboardList, roles: ["admin"] },
     { name: "Maintenance Teams", href: "/teams", icon: Users, roles: ["admin"] },
-    { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
+    { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
   ];
 
   const filteredNav = navigation.filter(item => item.roles.includes(user.role));
@@ -77,7 +79,10 @@ export function LayoutShell({ children }: LayoutShellProps) {
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1">
             {filteredNav.map((item) => {
-              const isActive = location === item.href;
+              // Dashboard should be exact match, others use startsWith for nested routes
+              const isActive = item.href === "/"
+                ? location === "/"
+                : location.startsWith(item.href);
               return (
                 <Link key={item.name} href={item.href}>
                   <div
@@ -98,26 +103,29 @@ export function LayoutShell({ children }: LayoutShellProps) {
 
           {/* User Profile Footer */}
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <Avatar className="h-9 w-9 border border-slate-700">
-                <AvatarFallback className="bg-slate-800 text-slate-200">
-                  {user.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                <p className="text-xs text-slate-500 truncate capitalize">{user.role}</p>
+            <Link href="/profile">
+              <div className="flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-slate-800 rounded-lg transition-colors group">
+                <Avatar className="h-9 w-9 border border-slate-700">
+                  <AvatarImage src={user.avatarUrl || undefined} />
+                  <AvatarFallback className="bg-slate-800 text-slate-200 group-hover:bg-slate-700 transition-colors">
+                    {user.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-slate-500 truncate capitalize group-hover:text-slate-400 transition-colors">{user.role}</p>
+                </div>
+                <div onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  logoutMutation.mutate();
+                }} role="button" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md transition-colors">
+                  <LogOut className="h-4 w-4" />
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-slate-400 hover:text-white hover:bg-slate-800"
-                onClick={() => logoutMutation.mutate()}
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
+            </Link>
           </div>
+
         </div>
       </aside>
 

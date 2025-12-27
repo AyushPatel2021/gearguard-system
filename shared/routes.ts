@@ -6,14 +6,17 @@ import {
   insertTeamSchema,
   insertEquipmentSchema,
   insertRequestSchema,
+  insertWorkCenterSchema,
   users,
   departments,
   categories,
   teams,
   equipment,
   maintenanceRequests,
-  activityLogs
+  activityLogs,
+  workCenters
 } from './schema';
+
 
 export const errorSchemas = {
   validation: z.object({
@@ -217,7 +220,38 @@ export const api = {
       path: '/api/logs',
       responses: { 200: z.array(z.custom<typeof activityLogs.$inferSelect>()) }
     }
+  },
+  workCenters: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/work-centers',
+      responses: { 200: z.array(z.custom<typeof workCenters.$inferSelect>()) }
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/work-centers',
+      input: insertWorkCenterSchema,
+      responses: { 201: z.custom<typeof workCenters.$inferSelect>() }
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/work-centers/:id',
+      responses: {
+        200: z.custom<typeof workCenters.$inferSelect>(),
+        404: errorSchemas.notFound
+      }
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/work-centers/:id',
+      input: insertWorkCenterSchema.partial(),
+      responses: {
+        200: z.custom<typeof workCenters.$inferSelect>(),
+        404: errorSchemas.notFound
+      }
+    }
   }
+
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
