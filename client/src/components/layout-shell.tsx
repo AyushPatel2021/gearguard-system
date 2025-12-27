@@ -1,25 +1,25 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  LayoutDashboard, 
-  Wrench, 
-  ClipboardList, 
-  Users, 
-  Settings, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Wrench,
+  ClipboardList,
+  Users,
+  Settings,
+  LogOut,
+  Menu,
   X,
   Bell,
   Search
 } from "lucide-react";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,14 +51,14 @@ export function LayoutShell({ children }: LayoutShellProps) {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-2xl",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -79,11 +79,11 @@ export function LayoutShell({ children }: LayoutShellProps) {
               const isActive = location === item.href;
               return (
                 <Link key={item.name} href={item.href}>
-                  <div 
+                  <div
                     className={cn(
                       "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
-                      isActive 
-                        ? "bg-primary text-white shadow-lg shadow-primary/25" 
+                      isActive
+                        ? "bg-primary text-white shadow-lg shadow-primary/25"
                         : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     )}
                   >
@@ -121,25 +121,25 @@ export function LayoutShell({ children }: LayoutShellProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-border/60 flex items-center justify-between px-4 lg:px-8">
           <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="lg:hidden mr-4"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-6 w-6" />
             </Button>
-            
+
             {/* Global Search Bar (Visual Only) */}
             <div className="hidden md:flex items-center relative max-w-md w-64 lg:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search equipment, requests..." 
+              <input
+                type="text"
+                placeholder="Search equipment, requests..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
               />
             </div>
@@ -154,7 +154,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-gray-50/50 p-4 md:p-8 animate-in">
+        <main className="flex-1 overflow-auto bg-gray-50/50 p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-8">
             {children}
           </div>

@@ -17,13 +17,16 @@ export const departments = pgTable("departments", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(), // email
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: roleEnum("role").default('employee').notNull(),
   departmentId: integer("department_id").references(() => departments.id),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
 });
 
 export const categories = pgTable("categories", {
@@ -141,5 +144,8 @@ export type Department = typeof departments.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Team = typeof teams.$inferSelect;
 export type Equipment = typeof equipment.$inferSelect;
+export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
 export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;
+export type InsertRequest = z.infer<typeof insertRequestSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+

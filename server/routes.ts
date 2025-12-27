@@ -104,9 +104,9 @@ async function seedDatabase() {
     const deptOps = await storage.createDepartment({ name: "Operations", description: "Plant Operations" });
 
     // Users
-    await storage.createUser({ username: "admin", password: adminPassword, name: "Admin User", role: "admin", departmentId: deptIT.id, isActive: true });
-    await storage.createUser({ username: "tech", password: techPassword, name: "John Tech", role: "technician", departmentId: deptOps.id, isActive: true });
-    await storage.createUser({ username: "user", password: userPassword, name: "Jane Employee", role: "employee", departmentId: deptOps.id, isActive: true });
+    await storage.createUser({ username: "admin", email: "admin@gearguard.com", password: adminPassword, name: "Admin User", role: "admin", departmentId: deptIT.id, isActive: true });
+    await storage.createUser({ username: "tech", email: "tech@gearguard.com", password: techPassword, name: "John Tech", role: "technician", departmentId: deptOps.id, isActive: true });
+    await storage.createUser({ username: "user", email: "user@gearguard.com", password: userPassword, name: "Jane Employee", role: "employee", departmentId: deptOps.id, isActive: true });
 
     // Categories
     const catComputers = await storage.createCategory({ name: "Computers", description: "Laptops and Desktops" });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { 
-  insertUserSchema, 
+import {
+  insertUserSchema,
   insertDepartmentSchema,
   insertCategorySchema,
   insertTeamSchema,
@@ -40,6 +40,43 @@ export const api = {
       responses: {
         200: z.custom<typeof users.$inferSelect>(),
         401: z.object({ message: z.string() })
+      }
+    },
+    register: {
+      method: 'POST' as const,
+      path: '/api/register',
+      input: z.object({
+        username: z.string().min(3, "Username must be at least 3 characters"),
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(6, "Password must be at least 6 characters"),
+        name: z.string().min(1, "Name is required")
+      }),
+      responses: {
+        201: z.custom<typeof users.$inferSelect>(),
+        400: z.object({ message: z.string() })
+      }
+    },
+    forgotPassword: {
+      method: 'POST' as const,
+      path: '/api/forgot-password',
+      input: z.object({
+        email: z.string().email("Invalid email address")
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        404: z.object({ message: z.string() })
+      }
+    },
+    resetPassword: {
+      method: 'POST' as const,
+      path: '/api/reset-password',
+      input: z.object({
+        token: z.string(),
+        password: z.string().min(6, "Password must be at least 6 characters")
+      }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        400: z.object({ message: z.string() })
       }
     },
     logout: {
@@ -106,9 +143,9 @@ export const api = {
     get: {
       method: 'GET' as const,
       path: '/api/equipment/:id',
-      responses: { 
+      responses: {
         200: z.custom<typeof equipment.$inferSelect>(),
-        404: errorSchemas.notFound 
+        404: errorSchemas.notFound
       }
     },
     create: {
@@ -121,9 +158,9 @@ export const api = {
       method: 'PUT' as const,
       path: '/api/equipment/:id',
       input: insertEquipmentSchema.partial(),
-      responses: { 
+      responses: {
         200: z.custom<typeof equipment.$inferSelect>(),
-        404: errorSchemas.notFound 
+        404: errorSchemas.notFound
       }
     }
   },
@@ -136,9 +173,9 @@ export const api = {
     get: {
       method: 'GET' as const,
       path: '/api/requests/:id',
-      responses: { 
+      responses: {
         200: z.custom<typeof maintenanceRequests.$inferSelect>(),
-        404: errorSchemas.notFound 
+        404: errorSchemas.notFound
       }
     },
     create: {
@@ -151,9 +188,9 @@ export const api = {
       method: 'PUT' as const,
       path: '/api/requests/:id',
       input: insertRequestSchema.partial(),
-      responses: { 
+      responses: {
         200: z.custom<typeof maintenanceRequests.$inferSelect>(),
-        404: errorSchemas.notFound 
+        404: errorSchemas.notFound
       }
     }
   },

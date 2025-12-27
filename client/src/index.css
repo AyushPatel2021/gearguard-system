@@ -95,10 +95,6 @@
   .glass-panel {
     @apply bg-card/80 backdrop-blur-md border border-white/20 shadow-xl shadow-black/5;
   }
-  
-  .animate-in {
-    animation: animateIn 0.3s ease-out forwards;
-  }
 
   .text-balance {
     text-wrap: balance;
