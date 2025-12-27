@@ -136,6 +136,14 @@ export function useUpdateRequest() {
       queryClient.invalidateQueries({ queryKey: [api.requests.list.path] });
       toast({ title: "Request Updated", description: "Changes have been saved." });
     },
+    onError: (error: Error) => {
+      console.error("Update request failed:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update request status",
+        variant: "destructive"
+      });
+    }
   });
 }
 

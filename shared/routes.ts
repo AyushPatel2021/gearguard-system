@@ -175,7 +175,7 @@ export const api = {
       responses: { 201: z.custom<typeof equipment.$inferSelect>() }
     },
     update: {
-      method: 'PUT' as const,
+      method: 'PATCH' as const,
       path: '/api/equipment/:id',
       input: insertEquipmentSchema.partial(),
       responses: {
@@ -205,7 +205,7 @@ export const api = {
       responses: { 201: z.custom<typeof maintenanceRequests.$inferSelect>() }
     },
     update: {
-      method: 'PUT' as const,
+      method: 'PATCH' as const,
       path: '/api/requests/:id',
       input: insertRequestSchema.partial(),
       responses: {

@@ -34,7 +34,7 @@ export default function Dashboard() {
   const highPriority = requests?.filter(r => r.priority === "high" && r.status !== "repaired").length || 0;
   const equipmentDown = equipment?.filter(e => e.status === "scrapped").length || 0; // Using scrapped as 'down' for simplicity
   const totalEquipment = equipment?.length || 0;
-  
+
   // Chart Data Preparation
   const statusDistribution = [
     { name: "New", value: requests?.filter(r => r.status === "new").length || 0, color: "#3B82F6" },
@@ -78,18 +78,65 @@ export default function Dashboard() {
         />
         <KpiCard
           title="Equipment Status"
-          value={`${totalEquipment - equipmentDown} / ${totalEquipment}`}
+          value={`${requests?.filter(r => r.status === "in_progress").length || 0} / ${requests?.length || 0}`}
           icon={<Activity className="h-6 w-6" />}
-          description="Operational assets"
+          description="Current inprogress from total"
           className="border-l-4 border-l-green-500"
         />
         <KpiCard
           title="Resolved This Month"
-          value={requests?.filter(r => r.status === "repaired").length || 0}
+          value={requests?.filter(r => r.status === "repaired" && new Date(r.createdAt).getMonth() === new Date().getMonth() && new Date(r.createdAt).getFullYear() === new Date().getFullYear()).length || 0}
           icon={<CheckCircle2 className="h-6 w-6" />}
           trend={{ value: "+12% vs last month", isPositive: true }}
           className="border-l-4 border-l-purple-500"
         />
+      </div>
+
+      {/* Pending Requests List */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold">Your Pending Requests</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 text-xs uppercase font-medium text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-left rounded-l-lg">ID</th>
+                <th className="px-4 py-3 text-left">Problem</th>
+                <th className="px-4 py-3 text-left">Priority</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left rounded-r-lg">Date</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm divide-y divide-slate-100">
+              {requests?.filter(r => r.createdBy === user?.id && r.status !== "repaired" && r.status !== "scrap").map((request) => (
+                <tr key={request.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-slate-900">#{request.id}</td>
+                  <td className="px-4 py-3 text-slate-600">{request.description?.substring(0, 50) || "No description"}...</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${request.priority === "high" ? "bg-red-100 text-red-700" :
+                      request.priority === "medium" ? "bg-amber-100 text-amber-700" :
+                        "bg-blue-100 text-blue-700"
+                      }`}>
+                      {request.priority}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="capitalize text-slate-600">{request.status.replace("_", " ")}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{format(new Date(request.createdAt), "MMM d, yyyy")}</td>
+                </tr>
+              ))}
+              {(!requests?.filter(r => r.createdBy === user?.id && r.status !== "repaired" && r.status !== "scrap").length) && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    No pending requests found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -103,7 +150,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
@@ -112,10 +159,10 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-             <h3 className="text-lg font-bold mb-6">Status Distribution</h3>
-             <div className="h-[300px] w-full flex justify-center">
+            <h3 className="text-lg font-bold mb-6">Status Distribution</h3>
+            <div className="h-[300px] w-full flex justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -134,15 +181,15 @@ export default function Dashboard() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-             </div>
-             <div className="flex justify-center gap-6 mt-4">
-                {statusDistribution.map((item) => (
-                  <div key={item.name} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm text-slate-600 font-medium">{item.name} ({item.value})</span>
-                  </div>
-                ))}
-             </div>
+            </div>
+            <div className="flex justify-center gap-6 mt-4">
+              {statusDistribution.map((item) => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm text-slate-600 font-medium">{item.name} ({item.value})</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

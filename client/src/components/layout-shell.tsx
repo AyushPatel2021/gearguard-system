@@ -12,7 +12,12 @@ import {
   Menu,
   X,
   Bell,
-  Search
+  Search,
+  Calendar,
+  ChevronDown,
+  Factory,
+  Tag,
+  FileText
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,24 +36,15 @@ interface LayoutShellProps {
 }
 
 export function LayoutShell({ children }: LayoutShellProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
 
   // Fallback if not logged in (should be handled by router guards, but defensive coding)
   if (!user) return null;
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "technician", "employee"] },
-    { name: "Requests", href: "/requests", icon: ClipboardList, roles: ["admin", "technician", "employee"] },
-    { name: "Work Centers", href: "/work-centers", icon: Settings2, roles: ["admin"] },
-    { name: "Equipment", href: "/equipment", icon: Wrench, roles: ["admin", "employee"] },
-    { name: "Categories", href: "/categories", icon: ClipboardList, roles: ["admin"] },
-    { name: "Maintenance Teams", href: "/teams", icon: Users, roles: ["admin"] },
-    { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
-  ];
-
-  const filteredNav = navigation.filter(item => item.roles.includes(user.role));
+  const isEquipmentActive = location.startsWith("/equipment") || location.startsWith("/work-centers") || location.startsWith("/categories");
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -78,28 +74,117 @@ export function LayoutShell({ children }: LayoutShellProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1">
-            {filteredNav.map((item) => {
-              // Dashboard should be exact match, others use startsWith for nested routes
-              const isActive = item.href === "/"
-                ? location === "/"
-                : location.startsWith(item.href);
-              return (
-                <Link key={item.name} href={item.href}>
-                  <div
-                    className={cn(
-                      "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
-                      isActive
-                        ? "bg-primary text-white shadow-lg shadow-primary/25"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
+            {/* Dashboard */}
+            <Link href="/">
+              <div className={cn(
+                "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                location === "/" ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              )}>
+                <LayoutDashboard className={cn("mr-3 h-5 w-5 flex-shrink-0", location === "/" ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                Dashboard
+              </div>
+            </Link>
+
+            {/* Calendar */}
+            {(user.role === "admin" || user.role === "technician") && (
+              <Link href="/calendar">
+                <div className={cn(
+                  "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                  location.startsWith("/calendar") ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}>
+                  <Calendar className={cn("mr-3 h-5 w-5 flex-shrink-0", location.startsWith("/calendar") ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                  Calendar
+                </div>
+              </Link>
+            )}
+
+            {/* Equipment Dropdown */}
+            {(user.role === "admin" || user.role === "employee") && (
+              <div className="space-y-1">
+                <button
+                  onClick={() => setEquipmentOpen(!equipmentOpen)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                    isEquipmentActive ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  )}
+                >
+                  <span className="flex items-center">
+                    <Wrench className={cn("mr-3 h-5 w-5 flex-shrink-0", isEquipmentActive ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                    Equipment
+                  </span>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", equipmentOpen ? "rotate-180" : "")} />
+                </button>
+                {equipmentOpen && (
+                  <div className="ml-4 pl-4 border-l border-slate-700 space-y-1">
+                    <Link href="/work-centers">
+                      <div className={cn(
+                        "flex items-center px-4 py-2 text-sm rounded-lg cursor-pointer",
+                        location.startsWith("/work-centers") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                      )}>
+                        <Factory className="mr-2 h-4 w-4" /> Work Centers
+                      </div>
+                    </Link>
+                    <Link href="/equipment">
+                      <div className={cn(
+                        "flex items-center px-4 py-2 text-sm rounded-lg cursor-pointer",
+                        location.startsWith("/equipment") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                      )}>
+                        <Wrench className="mr-2 h-4 w-4" /> Machine & Tools
+                      </div>
+                    </Link>
+                    {user.role === "admin" && (
+                      <Link href="/categories">
+                        <div className={cn(
+                          "flex items-center px-4 py-2 text-sm rounded-lg cursor-pointer",
+                          location.startsWith("/categories") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                        )}>
+                          <Tag className="mr-2 h-4 w-4" /> Categories
+                        </div>
+                      </Link>
                     )}
-                  >
-                    <item.icon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", isActive ? "text-white" : "text-slate-500 group-hover:text-white")} />
-                    {item.name}
                   </div>
-                </Link>
-              );
-            })}
+                )}
+              </div>
+            )}
+
+            {/* Reporting (Requests) */}
+            <Link href="/requests">
+              <div className={cn(
+                "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                location.startsWith("/requests") ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              )}>
+                <FileText className={cn("mr-3 h-5 w-5 flex-shrink-0", location.startsWith("/requests") ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                Reporting
+              </div>
+            </Link>
+
+            {/* Teams */}
+            {user.role === "admin" && (
+              <Link href="/teams">
+                <div className={cn(
+                  "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                  location.startsWith("/teams") ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}>
+                  <Users className={cn("mr-3 h-5 w-5 flex-shrink-0", location.startsWith("/teams") ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                  Teams
+                </div>
+              </Link>
+            )}
+
+            {/* Users */}
+            {user.role === "admin" && (
+              <Link href="/users">
+                <div className={cn(
+                  "flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer group",
+                  location.startsWith("/users") ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}>
+                  <Users className={cn("mr-3 h-5 w-5 flex-shrink-0", location.startsWith("/users") ? "text-white" : "text-slate-500 group-hover:text-white")} />
+                  Users
+                </div>
+              </Link>
+            )}
           </nav>
+
 
           {/* User Profile Footer */}
           <div className="p-4 border-t border-slate-800">

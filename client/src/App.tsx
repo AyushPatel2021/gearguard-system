@@ -21,6 +21,7 @@ import TeamDetailPage from "@/pages/teams-detail";
 import UsersPage from "@/pages/users";
 import UserDetailPage from "@/pages/users-detail";
 import ProfilePage from "@/pages/profile";
+import MaintenanceCalendarPage from "@/pages/maintenance-calendar";
 import { ReactNode } from "react";
 
 
@@ -91,6 +92,9 @@ function Router() {
       </Route>
       <Route path="/users/:id">
         <PrivateRoute component={UserDetailPage} />
+      </Route>
+      <Route path="/calendar">
+        <PrivateRoute component={MaintenanceCalendarPage} />
       </Route>
       <Route component={NotFound} />
     </Switch>

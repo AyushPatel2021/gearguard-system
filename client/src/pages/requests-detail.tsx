@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronRight, Save, StickyNote, Star, Construction, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { useEquipment, useTeams, useUsers, useCategories } from "@/hooks/use-gear";
+import { useEquipment, useTeams, useUsers, useCategories, useWorkCenters } from "@/hooks/use-gear";
 import { WorksheetDialog } from "@/components/worksheet-dialog";
 
 // Helper for Star Rating
@@ -57,6 +57,7 @@ export default function RequestDetailPage() {
     const { data: teams } = useTeams();
     const { data: users } = useUsers();
     const { data: categories } = useCategories();
+    const { data: workCenters } = useWorkCenters();
 
     const isNew = params?.id === "new";
     const id = !isNew && params?.id ? parseInt(params.id) : 0;
@@ -97,7 +98,7 @@ export default function RequestDetailPage() {
         requestType: "corrective",
         maintenanceFor: "equipment", // Default
         equipmentId: null, // Nullable
-        workCenter: "",
+        workCenterId: null,
         description: "", // Used as Notes? Or Description?
         // User requested 'notes' and 'instructions' tabs. 
         // Schema has 'description' (required) and 'instructions' (optional).
@@ -176,7 +177,8 @@ export default function RequestDetailPage() {
                 ...data,
                 scheduledDate: data.scheduledDate ? new Date(data.scheduledDate).toISOString() : null,
                 durationHours: parseInt(data.durationHours || 0),
-                equipmentId: data.equipmentId ? parseInt(data.equipmentId) : null, // Handle null
+                equipmentId: data.equipmentId ? parseInt(data.equipmentId) : null,
+                workCenterId: data.workCenterId ? parseInt(data.workCenterId) : null,
                 maintenanceTeamId: data.maintenanceTeamId ? parseInt(data.maintenanceTeamId) : null,
                 assignedTechnicianId: data.assignedTechnicianId ? parseInt(data.assignedTechnicianId) : null,
             };
@@ -371,16 +373,25 @@ export default function RequestDetailPage() {
                                     </>
                                 ) : (
                                     <div className="grid grid-cols-[120px_1fr] items-center gap-4 min-h-[36px]">
-                                        <Label className="text-right text-slate-500">Work Center</Label>
+                                        <Label className="text-right text-slate-500 font-bold text-slate-700">Work Center</Label>
                                         {isEditing ? (
-                                            <Input
-                                                value={formData.workCenter || ""}
-                                                onChange={e => setFormData({ ...formData, workCenter: e.target.value })}
-                                                className="border-0 border-b border-slate-300 rounded-none px-0 h-9 focus-visible:ring-0"
-                                                placeholder="Enter Work Center..."
-                                            />
+                                            <Select
+                                                value={formData.workCenterId?.toString()}
+                                                onValueChange={v => setFormData({ ...formData, workCenterId: parseInt(v) })}
+                                            >
+                                                <SelectTrigger className="border-0 border-b border-slate-300 rounded-none px-0 h-9 focus:ring-0">
+                                                    <SelectValue placeholder="Select Work Center..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {workCenters?.map(wc => (
+                                                        <SelectItem key={wc.id} value={wc.id.toString()}>{wc.name} ({wc.code})</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         ) : (
-                                            <div className="text-slate-900">{formData.workCenter || '-'}</div>
+                                            <div className="text-purple-700 font-medium">
+                                                {workCenters?.find(wc => wc.id === formData.workCenterId)?.name || '-'}
+                                            </div>
                                         )}
                                     </div>
                                 )}

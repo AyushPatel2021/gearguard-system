@@ -202,7 +202,10 @@ function KanbanColumn({ title, status, items, color }: { title: string, status: 
 
 function RequestActions({ request }: { request: MaintenanceRequest }) {
   const updateRequest = useUpdateRequest();
-  const handleStatusChange = (newStatus: "new" | "in_progress" | "repaired" | "scrap") => {
+  const [_, setLocation] = useLocation();
+
+  const handleStatusChange = (e: React.MouseEvent, newStatus: "new" | "in_progress" | "repaired" | "scrap") => {
+    e.stopPropagation(); // Critical to prevent row click
     updateRequest.mutate({
       id: request.id,
       data: { status: newStatus }
@@ -217,10 +220,13 @@ function RequestActions({ request }: { request: MaintenanceRequest }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleStatusChange("new")}>Move to New</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleStatusChange("in_progress")}>Move to In Progress</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleStatusChange("repaired")}>Mark Completed</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleStatusChange("scrap")}>Mark Scrapped</DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setLocation(`/requests/${request.id}`); }}>
+          View Details
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => handleStatusChange(e, "new")}>Move to New</DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => handleStatusChange(e, "in_progress")}>Move to In Progress</DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => handleStatusChange(e, "repaired")}>Mark Completed</DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => handleStatusChange(e, "scrap")}>Mark Scrapped</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -228,8 +234,10 @@ function RequestActions({ request }: { request: MaintenanceRequest }) {
 
 function RequestCard({ request }: { request: MaintenanceRequest }) {
   const updateRequest = useUpdateRequest();
+  const [_, setLocation] = useLocation();
 
-  const handleStatusChange = (newStatus: "new" | "in_progress" | "repaired" | "scrap") => {
+  const handleStatusChange = (e: React.MouseEvent, newStatus: "new" | "in_progress" | "repaired" | "scrap") => {
+    e.stopPropagation();
     updateRequest.mutate({
       id: request.id,
       data: { status: newStatus }
@@ -243,25 +251,33 @@ function RequestCard({ request }: { request: MaintenanceRequest }) {
   };
 
   return (
-    <Card className="shadow-sm border-slate-200 hover:shadow-md transition-shadow">
+    <Card
+      className="shadow-sm border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => setLocation(`/requests/${request.id}`)}
+    >
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start">
           <Badge className={cn("capitalize shadow-none", priorityColor[request.priority])}>
             {request.priority}
           </Badge>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleStatusChange("new")}>Move to New</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange("in_progress")}>Move to In Progress</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange("repaired")}>Mark Completed</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange("scrap")}>Mark Scrapped</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setLocation(`/requests/${request.id}`); }}>
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "new")}>Move to New</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "in_progress")}>Move to In Progress</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "repaired")}>Mark Completed</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => handleStatusChange(e, "scrap")}>Mark Scrapped</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         <CardTitle className="text-base font-semibold mt-2 line-clamp-1">
           {request.subject}
