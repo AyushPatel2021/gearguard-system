@@ -95,7 +95,7 @@ export async function registerRoutes(
   });
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const { password, ...rest } = req.body;
+      const { password, resetToken, resetTokenExpiry, createdAt, ...rest } = req.body;
       let updateData: any = { ...rest };
 
       // Only hash password if provided
@@ -115,6 +115,8 @@ export async function registerRoutes(
         updateData.password = await hashPassword(password);
       }
 
+      // Remove currentPassword from payload before saving
+      delete updateData.currentPassword;
 
       const data = await storage.updateUser(Number(req.params.id), updateData);
       res.json(data);
@@ -268,7 +270,8 @@ export async function registerRoutes(
     res.status(201).json(data);
   });
   app.patch(api.workCenters.update.path, async (req, res) => {
-    const parsed = insertWorkCenterSchema.partial().parse(req.body);
+    const { createdAt, id: _, ...rest } = req.body;
+    const parsed = insertWorkCenterSchema.partial().parse(rest);
     const data = await storage.updateWorkCenter(Number(req.params.id), parsed);
     res.json(data);
   });
